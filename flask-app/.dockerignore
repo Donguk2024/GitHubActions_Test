@@ -1,0 +1,21 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[codz]
+
+# logs
+*.log
+
+# Environments
+.env
+.venv
+venv/
+
+# git files
+.git
+.gitignore
+
+# docker files
+Dockerfile*
+docker-compose*
+
+

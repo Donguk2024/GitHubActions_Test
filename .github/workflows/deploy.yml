@@ -1,0 +1,115 @@
+name: CI/CD via Bastion to Private WEB
+
+on:
+  push:
+    branches: [ "main" ]   # main 브랜치 푸시 시 자동 실행
+  workflow_dispatch: {}    # 필요 시 수동 실행도 가능
+
+jobs:
+  build_and_push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Docker Hub 로그인
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Docker 이미지 빌드 & 푸시
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE=${{ secrets.DOCKER_USERNAME }}/myapp
+          TAG=${{ github.sha }}
+          echo "🔨 Building $IMAGE:$TAG"
+
+          docker build -t $IMAGE:$TAG -t $IMAGE:latest .
+          docker push $IMAGE:$TAG
+          docker push $IMAGE:latest
+
+  deploy:
+    name: Deploy to WEB via Bastion
+    runs-on: ubuntu-latest
+    needs: build_and_push
+
+    env:
+      DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/myapp:latest
+      AWS_REGION:   ${{ ap-northeast-1 }}
+      ASG_NAME:     ${{ web-asg }}
+      TARGET_GROUP_ARN: ${{ arn:aws:elasticloadbalancing:ap-northeast-1:236528210774:loadbalancer/app/test-alb/adcc91ae87a60332 }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # OIDC + IAM Role Assume
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume:  ${{ AWS_OIDC_ROLE_ARN }}   # 예: arn:aws:iam::123456789012:role/github-oidc-deploy-role
+          aws-region:      ${{ ap-northeast-1 }}
+          role-session-name: gha-deploy
+
+      # 키 파일 생성
+      - name: Write SSH keys
+        run: |
+          mkdir -p ~/.ssh
+          umask 077
+          echo "${{ secrets.BASTION_SSH_KEY }}" > ~/.ssh/id_bastion.pem
+          echo "${{ secrets.WEB_KEY }}" > ~/.ssh/id_web.pem
+          chmod 600 ~/.ssh/id_bastion.pem ~/.ssh/id_web.pem
+
+          cat > ~/.ssh/config <<CONF          
+          Host bastion
+            HostName ${{ secrets.BASTION_IP }}
+            User ${{ secrets.BASTION_USER || 'ubuntu' }}
+            IdentityFile ~/.ssh/id_bastion.pem
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+          CONF
+
+      # 동적 WEB 인스턴스 IP 조회
+      - name: Get WEB Private IPs
+        id: webips
+        run: |
+          sudo apt-get update -y >/dev/null 2>&1 || true
+          sudo apt-get install -y jq >/dev/null 2>&1 || true
+
+          if [ -n "${TARGET_GROUP_ARN}" ]; then
+            IPS=$(aws elbv2 describe-target-health --target-group-arn "${TARGET_GROUP_ARN}" \
+              --query 'TargetHealthDescriptions[?TargetHealth.State==`healthy`].Target.Id' \
+              --output text)
+          else
+            IDS=$(aws autoscaling describe-auto-scaling-groups \
+              --auto-scaling-group-names "${ASG_NAME}" \
+              --query 'AutoScalingGroups[0].Instances[?LifecycleState==`InService` && HealthStatus==`Healthy`].InstanceId' \
+              --output text)
+            IPS=$(aws ec2 describe-instances --instance-ids $IDS \
+              --query 'Reservations[].Instances[].PrivateIpAddress' \
+              --output text)
+          fi
+
+          echo "web_ips=$IPS" >> $GITHUB_OUTPUT
+
+      # Bastion → WEB 접속해서 배포 실행
+      - name: Deploy on WEB instances
+        run: |
+          IMAGE="${DOCKER_IMAGE}"
+          WEB_USER=${{ secrets.WEB_USER || 'ubuntu' }}
+          for ip in ${{ steps.webips.outputs.web_ips }}; do
+            echo "🚀 Deploying on $ip"
+            ssh -F ~/.ssh/config -i ~/.ssh/id_web.pem -J bastion ${WEB_USER}@${ip} "
+              docker pull $IMAGE &&
+              docker stop myapp || true &&
+              docker rm myapp || true &&
+              docker run -d --name myapp -p 80:3000 \
+                --restart unless-stopped \
+                $IMAGE
+            "
+          done
+
+
