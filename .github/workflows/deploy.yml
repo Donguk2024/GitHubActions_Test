@@ -26,7 +26,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: flask-app                # 빌드 컨텍스트(소스가 있는 폴더)
-          dockerfile: flask-app/Dockerfile  # Dockerfile 실제 경로
+          file: flask-app/Dockerfile  # Dockerfile 실제 경로
           push: true
           pull: true
           tags: |
