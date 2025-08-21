@@ -33,7 +33,7 @@ jobs:
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.IMAGE_NAME }}:latest      
           run: |
-            IMAGE=${{ secrets.DOCKER_USERNAME }}/myapp
+            IMAGE=${{ secrets.DOCKER_USERNAME }}/actions_test
             TAG=${{ github.sha }}
             echo "🔨 Building $IMAGE:$TAG"
 
