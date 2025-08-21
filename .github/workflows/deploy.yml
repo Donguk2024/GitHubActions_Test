@@ -1,124 +1,56 @@
-name: CI/CD via Bastion to Private WEB
+name: Secrets Demo
 
 on:
-  push:
-    branches: [ "main" ]   # main 브랜치 푸시 시 자동 실행
-  workflow_dispatch: {}    # 필요 시 수동 실행도 가능
+  workflow_dispatch: {}   # 수동 실행 버튼으로 돌립니다.
 
 jobs:
-  build_and_push:
-    name: Build & Push Docker Image
+  show_secrets_usage:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # Docker Hub 로그인
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # Docker 이미지 빌드 & 푸시
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: flask-app                # 빌드 컨텍스트(소스가 있는 폴더)
-          file: flask-app/Dockerfile  # Dockerfile 실제 경로
-          push: true
-          pull: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ${{ env.IMAGE_NAME }}:latest      
-          run: |
-            IMAGE=${{ secrets.DOCKER_USERNAME }}/actions_test
-            TAG=${{ github.sha }}
-            echo "🔨 Building $IMAGE:$TAG"
-
-            docker build -t $IMAGE:$TAG -t $IMAGE:latest .
-            docker push $IMAGE:$TAG
-            docker push $IMAGE:latest
-
-  deploy:
-    name: Deploy to WEB via Bastion
-    runs-on: ubuntu-latest
-    needs: build_and_push
-
-    env:
-      DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/actions_test:latest
-      AWS_REGION:   "ap-northeast-1"
-      ASG_NAME:     "web-asg"
-      TARGET_GROUP_ARN: "arn:aws:elasticloadbalancing:ap-northeast-1:236528210774:loadbalancer/app/test-alb/adcc91ae87a60332"
-
-    steps:
-      - uses: actions/checkout@v4
-
-      # OIDC + IAM Role Assume
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume:  ${{ secrets.AWS_OIDC_ROLE_ARN }}   # 예: arn:aws:iam::123456789012:role/github-oidc-deploy-role
-          aws-region:      "ap-northeast-1"
-          role-session-name: gha-deploy
-
-      # 키 파일 생성
-      - name: Write SSH keys
+      # 1) 시크릿 존재 확인 (값은 마스킹되어 노출되지 않음)
+      - name: Preflight: ensure secret exists
         run: |
-          mkdir -p ~/.ssh
-          umask 077
-          echo "${{ secrets.BASTION_SSH_KEY }}" > ~/.ssh/id_bastion.pem
-          echo "${{ secrets.WEB_KEY }}" > ~/.ssh/id_web.pem
-          chmod 600 ~/.ssh/id_bastion.pem ~/.ssh/id_web.pem
-
-          cat > ~/.ssh/config <<CONF          
-          Host bastion
-            HostName ${{ secrets.BASTION_IP }}
-            User ${{ secrets.BASTION_USER || 'ubuntu' }}
-            IdentityFile ~/.ssh/id_bastion.pem
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-          CONF
-
-      # 동적 WEB 인스턴스 IP 조회
-      - name: Get WEB Private IPs
-        id: webips
-        run: |
-          sudo apt-get update -y >/dev/null 2>&1 || true
-          sudo apt-get install -y jq >/dev/null 2>&1 || true
-
-          if [ -n "${TARGET_GROUP_ARN}" ]; then
-            IPS=$(aws elbv2 describe-target-health --target-group-arn "${TARGET_GROUP_ARN}" \
-              --query 'TargetHealthDescriptions[?TargetHealth.State==`healthy`].Target.Id' \
-              --output text)
+          if [ -z "${{ secrets.MY_SECRET }}" ]; then
+            echo "❌ MY_SECRET is missing. Add it in Settings > Secrets and variables > Actions."
+            exit 1
           else
-            IDS=$(aws autoscaling describe-auto-scaling-groups \
-              --auto-scaling-group-names "${ASG_NAME}" \
-              --query 'AutoScalingGroups[0].Instances[?LifecycleState==`InService` && HealthStatus==`Healthy`].InstanceId' \
-              --output text)
-            IPS=$(aws ec2 describe-instances --instance-ids $IDS \
-              --query 'Reservations[].Instances[].PrivateIpAddress' \
-              --output text)
+            echo "✅ MY_SECRET exists (value is masked in logs)."
           fi
 
-          echo "web_ips=$IPS" >> $GITHUB_OUTPUT
-
-      # Bastion → WEB 접속해서 배포 실행
-      - name: Deploy on WEB instances
+      # 2) 시크릿을 환경변수로 전달해 "길이"만 출력 (값은 여전히 마스킹)
+      - name: Use secret safely (length only)
+        env:
+          MY_SECRET: ${{ secrets.MY_SECRET }}
         run: |
-          IMAGE="${DOCKER_IMAGE}"
-          WEB_USER=${{ secrets.WEB_USER || 'ubuntu' }}
-          for ip in ${{ steps.webips.outputs.web_ips }}; do
-            echo "🚀 Deploying on $ip"
-            ssh -F ~/.ssh/config -i ~/.ssh/id_web.pem -J bastion ${WEB_USER}@${ip} "
-              docker pull $IMAGE &&
-              docker stop actions_test || true &&
-              docker rm actions_test || true &&
-              docker run -d --name actions_test -p 80:3000 \
-                --restart unless-stopped \
-                $IMAGE
-            "
-          done
+          echo "🔒 Masked echo: ${MY_SECRET}"                 # 로그에 ***** 로 보임
+          echo "🔎 Secret length: ${#MY_SECRET}"              # 길이는 숫자로 출력됨
+
+      # 3) 시크릿이 없으면 실패, 있으면 성공 메시지 출력
+      - name: Do something that requires the secret
+        env:
+          MY_SECRET: ${{ secrets.MY_SECRET }}
+        run: |
+          # 여기서는 예시로 간단한 검증만 합니다.
+          test -n "$MY_SECRET"
+          echo "🚀 Action can proceed with the provided secret!"
+
+      # 4) (옵션) 시크릿 기반으로 파일 생성 (내용은 노출하지 않음)
+      - name: Create artifact that proves it ran
+        env:
+          MY_SECRET: ${{ secrets.MY_SECRET }}
+        run: |
+          echo "This job ran with a secret present at $(date -u +"%Y-%m-%dT%H:%M:%SZ")." > run-proof.txt
+          echo "Secret length was ${#MY_SECRET} (value masked in logs)." >> run-proof.txt
+
+      - name: Upload proof artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-proof
+          path: run-proof.txt
+
 
 
