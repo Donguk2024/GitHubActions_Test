@@ -47,7 +47,7 @@ jobs:
     needs: build_and_push
 
     env:
-      DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/myapp:latest
+      DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/actions_test:latest
       AWS_REGION:   "ap-northeast-1"
       ASG_NAME:     "web-asg"
       TARGET_GROUP_ARN: "arn:aws:elasticloadbalancing:ap-northeast-1:236528210774:loadbalancer/app/test-alb/adcc91ae87a60332"
@@ -113,9 +113,9 @@ jobs:
             echo "🚀 Deploying on $ip"
             ssh -F ~/.ssh/config -i ~/.ssh/id_web.pem -J bastion ${WEB_USER}@${ip} "
               docker pull $IMAGE &&
-              docker stop myapp || true &&
-              docker rm myapp || true &&
-              docker run -d --name myapp -p 80:3000 \
+              docker stop actions_test || true &&
+              docker rm actions_test || true &&
+              docker run -d --name actions_test -p 80:3000 \
                 --restart unless-stopped \
                 $IMAGE
             "
