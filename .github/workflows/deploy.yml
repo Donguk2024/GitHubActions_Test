@@ -39,9 +39,9 @@ jobs:
 
     env:
       DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/myapp:latest
-      AWS_REGION:   ${{ ap-northeast-1 }}
-      ASG_NAME:     ${{ web-asg }}
-      TARGET_GROUP_ARN: ${{ arn:aws:elasticloadbalancing:ap-northeast-1:236528210774:loadbalancer/app/test-alb/adcc91ae87a60332 }}
+      AWS_REGION:   "ap-northeast-1"
+      ASG_NAME:     "web-asg"
+      TARGET_GROUP_ARN: "arn:aws:elasticloadbalancing:ap-northeast-1:236528210774:loadbalancer/app/test-alb/adcc91ae87a60332"
 
     steps:
       - uses: actions/checkout@v4
@@ -50,8 +50,8 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume:  ${{ AWS_OIDC_ROLE_ARN }}   # 예: arn:aws:iam::123456789012:role/github-oidc-deploy-role
-          aws-region:      ${{ ap-northeast-1 }}
+          role-to-assume:  ${{ secrets.AWS_OIDC_ROLE_ARN }}   # 예: arn:aws:iam::123456789012:role/github-oidc-deploy-role
+          aws-region:      "ap-northeast-1"
           role-session-name: gha-deploy
 
       # 키 파일 생성
