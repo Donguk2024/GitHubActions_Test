@@ -32,14 +32,14 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.IMAGE_NAME }}:latest      
-        run: |
-          IMAGE=${{ secrets.DOCKER_USERNAME }}/myapp
-          TAG=${{ github.sha }}
-          echo "🔨 Building $IMAGE:$TAG"
+          run: |
+            IMAGE=${{ secrets.DOCKER_USERNAME }}/myapp
+            TAG=${{ github.sha }}
+            echo "🔨 Building $IMAGE:$TAG"
 
-          docker build -t $IMAGE:$TAG -t $IMAGE:latest .
-          docker push $IMAGE:$TAG
-          docker push $IMAGE:latest
+            docker build -t $IMAGE:$TAG -t $IMAGE:latest .
+            docker push $IMAGE:$TAG
+            docker push $IMAGE:latest
 
   deploy:
     name: Deploy to WEB via Bastion
