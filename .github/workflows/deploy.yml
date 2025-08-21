@@ -1,7 +1,8 @@
 name: Secrets Demo
 
 on:
-  workflow_dispatch: {}   # 수동 실행 버튼으로 돌립니다.
+  push:
+    branches: [ "main" ]
 
 jobs:
   show_secrets_usage:
@@ -52,5 +53,5 @@ jobs:
           name: run-proof
           path: run-proof.txt
 
-#####
+########
 
