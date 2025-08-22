@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 echo "Rolling update ASG"
-ASG_NAME="web-asg"
+ASG_NAME="asg-webapp"
 ORIGIN_MIN=0
 ORIGIN_MAX=0
 ORIGIN_DESIRED=0
