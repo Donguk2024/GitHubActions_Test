@@ -28,3 +28,51 @@ jobs:
     - name: Push Docker image
       run: docker push ${{ secrets.DOCKER_USERNAME }}/actions_test:latest
 
+step2_deploy_web_test:
+    name: Step 2 - Deploy web-test and Run Health Check
+    runs-on: self-hosted
+    needs: step1_build_and_push_latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Prepare bastion-key.pem
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.BASTION_SSH_KEY }}" > ~/.ssh/bastion-key.pem
+        chmod 600 ~/.ssh/bastion-key.pem
+
+    - name: Copy deploy-web-test.sh to Bastion via scp
+      run: |
+        scp -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no scripts/deploy-web-test.sh \
+        ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }}:/home/${{ secrets.BASTION_USER }}/
+
+    - name: Create web-key.pem on Bastion
+      run: |
+        ssh -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no \
+        ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
+        "mkdir -p ~/.ssh && echo '${{ secrets.WEB_KEY }}' > ~/.ssh/web-key.pem && chmod 600 ~/.ssh/web-key.pem"
+
+    - name: Ensure AWS CLI and curl are installed on Bastion
+      run: |
+        ssh -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no \
+        ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
+        "command -v aws >/dev/null || (echo Installing AWS CLI... && \
+        curl -sS https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip && \
+        sudo apt update && sudo apt install unzip -y && \
+        unzip awscliv2.zip && sudo ./aws/install)"
+
+        ssh -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no \
+        ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
+        "command -v curl >/dev/null || (echo Installing curl... && \
+        sudo apt update && sudo apt install curl -y)"
+
+    - name: Execute deploy-web-test.sh on Bastion
+      run: |
+        ssh -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no \
+        ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
+        "echo '🚀 Running health check script' && chmod +x ~/deploy-web-test.sh && ~/deploy-web-test.sh"
+
+    - name: Cleanup SSH key
+      run: rm -f ~/.ssh/bastion-key.pem
