@@ -1,57 +1,28 @@
-name: Secrets Demo
+name: Deploy Flow
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
 
 jobs:
-  show_secrets_usage:
+  step1_build_and_push_latest:
+    name: Step 1 - Build and Push :latest
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      # 1) 시크릿 존재 확인 (값은 마스킹되어 노출되지 않음)
-      - name: Preflight:ensure secret exists
-        run: |
-          if [ -z "${{ secrets.MY_SECRET }}" ]; then
-            echo "❌ MY_SECRET is missing. Add it in Settings > Secrets and variables > Actions."
-            exit 1
-          else
-            echo "✅ MY_SECRET exists (value is masked in logs)."
-          fi
+    - name: Log in to Docker Hub
+      run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      # 2) 시크릿을 환경변수로 전달해 "길이"만 출력 (값은 여전히 마스킹)
-      - name: Use secret safely (length only)
-        env:
-          MY_SECRET: ${{ secrets.MY_SECRET }}
-        run: |
-          echo "🔒 Masked echo: ${MY_SECRET}"                 # 로그에 ***** 로 보임
-          echo "🔎 Secret length: ${#MY_SECRET}"              # 길이는 숫자로 출력됨
+    - name: Build Docker image with Git SHA as APP_VERSION
+      run: |
+        docker build \
+          --build-arg APP_VERSION=${{ github.sha }} \
+          -t ${{ secrets.DOCKER_USERNAME }}/flask-app:latest .
 
-      # 3) 시크릿이 없으면 실패, 있으면 성공 메시지 출력
-      - name: Do something that requires the secret
-        env:
-          MY_SECRET: ${{ secrets.MY_SECRET }}
-        run: |
-          # 여기서는 예시로 간단한 검증만 합니다.
-          test -n "$MY_SECRET"
-          echo "🚀 Action can proceed with the provided secret!"
-
-      # 4) (옵션) 시크릿 기반으로 파일 생성 (내용은 노출하지 않음)
-      - name: Create artifact that proves it ran
-        env:
-          MY_SECRET: ${{ secrets.MY_SECRET }}
-        run: |
-          echo "This job ran with a secret present at $(date -u +"%Y-%m-%dT%H:%M:%SZ")." > run-proof.txt
-          echo "Secret length was ${#MY_SECRET} (value masked in logs)." >> run-proof.txt
-
-      - name: Upload proof artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: run-proof
-          path: run-proof.txt
-
-########
+    - name: Push Docker image
+      run: docker push ${{ secrets.DOCKER_USERNAME }}/flask-app:latest
 
