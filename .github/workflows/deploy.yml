@@ -43,6 +43,18 @@ jobs:
           echo "${{ secrets.BASTION_SSH_KEY }}" > ~/.ssh/bastion-key.pem
           chmod 600 ~/.ssh/bastion-key.pem
 
+      # 빠른 네트워크 진단 step
+      - name: Quick Network Diagnostics
+        run: |
+          echo "### DNS lookup"
+          nslookup ${{ secrets.BASTION_IP }} || true
+          echo "### Ping test"
+          ping -c 2 ${{ secrets.BASTION_IP }} || true
+          echo "### Port scan 22"
+          nc -vz ${{ secrets.BASTION_IP }} 22 || true
+          echo "### SSH debug"
+          ssh -vvv -i ~/.ssh/bastion-key.pem ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }} 'echo ok' || true
+
       - name: Copy deploy-web-test.sh to Bastion via scp
         run: |
           scp -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no scripts/deploy-web-test.sh \
