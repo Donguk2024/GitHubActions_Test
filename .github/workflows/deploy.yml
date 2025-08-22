@@ -94,3 +94,32 @@ jobs:
 
       - name: Push :stable image to Docker Hub
         run: docker push ${{ secrets.DOCKER_USERNAME }}/actions_test:stable
+
+  step4_rotate_web_asg:
+        name: Step 4 - Rolling Update ASG
+        runs-on: self-hosted
+        needs: step3_tag_and_push_stable
+
+        steps:
+        - name: Checkout repository
+          uses: actions/checkout@v3
+
+        - name: Prepare bastion-key.pem
+          run: |
+            mkdir -p ~/.ssh
+            echo "${{ secrets.BASTION_SSH_KEY }}" > ~/.ssh/bastion-key.pem
+            chmod 600 ~/.ssh/bastion-key.pem
+
+        - name: Copy rotate-web-instances.sh to Bastion via scp
+          run: |
+            scp -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no scripts/rotate-web-instances.sh \
+            ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }}:/home/${{ secrets.BASTION_USER }}/
+
+        - name: Execute rotate-web-instances.sh on Bastion
+          run: |
+            ssh -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no \
+            ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }} \
+            "chmod +x ~/rotate-web-instances.sh && ~/rotate-web-instances.sh"
+
+        - name: Cleanup SSH key
+          run: rm -f ~/.ssh/bastion-key.pem  
