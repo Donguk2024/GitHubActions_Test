@@ -20,10 +20,10 @@ jobs:
     - name: Build Docker image with Git SHA as APP_VERSION
       run: |
         docker build \
-          -f scripts/Dockerfile \
+          -f flask-app/Dockerfile \
           --build-arg APP_VERSION=${{ github.sha }} \
           -t ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_TAG }}:latest \
-          scripts
+          flask-app
 
     - name: Push Docker image
       run: docker push ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_TAG }}:latest
