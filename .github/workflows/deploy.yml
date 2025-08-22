@@ -20,6 +20,7 @@ jobs:
     - name: Build Docker image with Git SHA as APP_VERSION
       run: |
         docker build \
+          -f Dockerfile .\
           --build-arg APP_VERSION=${{ github.sha }} \
           -t ${{ secrets.DOCKER_USERNAME }}/actions_test:latest .
 
