@@ -1,6 +1,6 @@
 services:
   app:
-    image: ${DOCKER_USER}/flask-app:${IMAGE_TAG:-stable}
+    image: ${DOCKER_USER}/actions_test:${IMAGE_TAG:-stable}
     restart: always
     environment:
       - APP_ENV=prod
