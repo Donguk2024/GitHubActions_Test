@@ -41,6 +41,14 @@ def status():
         time=datetime.datetime.utcnow().isoformat()
     ), 200
 
+# docker pull 확인
+@app.route("/version")
+def version():
+    import os
+    return {
+        "app_version": os.getenv("APP_VERSION", "unknown"),
+        "image_digest": os.getenv("IMAGE_DIGEST", "unknown")
+    }, 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
