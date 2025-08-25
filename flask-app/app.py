@@ -47,7 +47,7 @@ def version():
     import os
     return {
         "app_version": os.getenv("APP_VERSION", "unknown"),
-        "image_digest": os.getenv("IMAGE_DIGEST", "unknown")
+        "image_digest": os.getenv("IMAGE_DIGEST", "unknown2")
     }, 200
 
 if __name__ == '__main__':
