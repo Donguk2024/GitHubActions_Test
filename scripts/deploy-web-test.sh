@@ -4,7 +4,7 @@ echo "Deploy web-test and run health check"
 
 # 1. web-test 인스턴스 생성
 instance_id=$(aws ec2 run-instances \
-  --launch-template LaunchTemplateName="lt-k" \
+  --launch-template LaunchTemplateName="web-test-lt" \
   --query 'Instances[0].InstanceId' \
   --output text)
 echo "Web-test instance id: $instance_id"
@@ -23,7 +23,7 @@ echo "Web-test private ip: $private_ip"
 # 4. 헬스 체크 루프
 for i in $(seq 20); do
   echo "Health check attempt: $i/20"
-  health_status=$(ssh -o StrictHostKeyChecking=no -i ~/.ssh/web-key.pem ubuntu@"$private_ip" \
+  health_status=$(ssh -o StrictHostKeyChecking=no -i "~/.ssh/web-key.pem" ubuntu@"$private_ip" \
     "curl -s -o /dev/null -w '%{http_code}' http://localhost/health" || echo "000")
   echo "App health status: $health_status"
 
