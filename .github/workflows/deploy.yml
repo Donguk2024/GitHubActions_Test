@@ -43,6 +43,10 @@ jobs:
           echo "${{ secrets.BASTION_SSH_KEY }}" > ~/.ssh/bastion-key.pem
           chmod 600 ~/.ssh/bastion-key.pem
           HOST="${{ secrets.BASTION_IP }}"
+          ssh-keygen -R "$HOST" || true
+          ssh-keygen -R "[$HOST]:22" || true
+          ssh-keyscan -t ed25519 "$HOST" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts   
 
       - name: Copy deploy-web-test.sh to Bastion via scp
         run: |
