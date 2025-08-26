@@ -23,22 +23,24 @@ echo "Web-test private ip: $private_ip"
 # 4. 헬스 체크 루프
 for i in $(seq 20); do
   echo "Health check attempt: $i/20"
-  health_status=$(ssh -o StrictHostKeyChecking=no -i "~/.ssh/web-key.pem" ubuntu@"$private_ip" \
+  health_status=$(ssh -o StrictHostKeyChecking=no -i ~/.ssh/web-key.pem ubuntu@"$private_ip" \
     "curl -s -o /dev/null -w '%{http_code}' http://localhost/health" || echo "000")
   echo "App health status: $health_status"
+
   # 헬스 체크 통과
   if [ "$health_status" = "200" ]; then
     echo "Health check passed ✅"
     aws ec2 terminate-instances --instance-ids "$instance_id"
-    rm -f "~/.ssh/web-key.pem"
+    rm -f ~/.ssh/web-key.pem
     echo "Instance terminated and key removed"
     break
   fi
+
   # 헬스 체크 실패
   if [ "$i" -eq 20 ]; then
     echo "Health check failed ❌"
     aws ec2 terminate-instances --instance-ids "$instance_id"
-    rm -f "~/.ssh/web-key.pem"
+    rm -f ~/.ssh/web-key.pem
     echo "Instance terminated and key removed"
     exit 1
   fi
