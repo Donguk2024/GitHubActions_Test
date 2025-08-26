@@ -4,7 +4,7 @@ echo "Deploy web-test and run health check"
 
 # 1. web-test 인스턴스 생성
 instance_id=$(aws ec2 run-instances \
-  --launch-template LaunchTemplateName="web-test-lt" \
+  --launch-template LaunchTemplateName="web-test-k" \
   --query 'Instances[0].InstanceId' \
   --output text)
 echo "Web-test instance id: $instance_id"
