@@ -42,9 +42,17 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.BASTION_SSH_KEY }}" > ~/.ssh/bastion-key.pem
           chmod 600 ~/.ssh/bastion-key.pem
+          HOST="${{ secrets.BASTION_IP }}"
+          # 이전 키 제거 후 새 키 스캔(REMOTE HOST IDENTIFICATION HAS CHANGED! 해결)
+          ssh-keygen -R "$HOST" || true
+          ssh-keygen -R "[$HOST]:22" || true
+          ssh-keyscan -t ed25519 "$HOST" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
 
       - name: Copy deploy-web-test.sh to Bastion via scp
         run: |
+          HOST="${{ secrets.BASTION_IP }}"
+          USER="${{ secrets.BASTION_USER }}"
           scp -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no scripts/deploy-web-test.sh \
           ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP}}:/home/${{ secrets.BASTION_USER }}/
 
