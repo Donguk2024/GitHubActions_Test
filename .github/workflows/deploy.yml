@@ -49,7 +49,7 @@ jobs:
           HOST="${{ secrets.BASTION_IP }}"
           USER="${{ secrets.BASTION_USER }}"
           scp -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no scripts/deploy-web-test.sh \
-          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP}}:/home/${{ secrets.BASTION_USER }}/
+          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }}:/home/${{ secrets.BASTION_USER }}/
 
       - name: Create web-key.pem on Bastion
         run: |
