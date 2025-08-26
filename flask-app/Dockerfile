@@ -44,4 +44,4 @@ ENV APP_VERSION=${APP_VERSION}
 EXPOSE 5000
 
 # 워커 2개로 gunicorn 실행 (app:app -> 파일명:변수명)
-CMD ["sh", "-c", "gunicorn -w ${GUNICORN_WORKERS} -t ${GUNICORN_TIMEOUT} -b 0.0.0.0:${PORT} app:app"]
+CMD ["python", "app.py"]
