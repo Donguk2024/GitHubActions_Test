@@ -1,7 +1,16 @@
 FROM python:3.9-slim
+
+# 보안/재현성에 유리한 기본 설정
+ENV PYTHONUNBUFFERED=1 \
+    PORT=5000 \
+    GUNICORN_WORKERS=2 \
+    GUNICORN_TIMEOUT=30
+
 WORKDIR /app
+
 COPY requirements.txt .
 RUN pip install -r requirements.txt
+
 COPY . .
 ARG APP_VERSION=v1.0
 ENV APP_VERSION=${APP_VERSION}
