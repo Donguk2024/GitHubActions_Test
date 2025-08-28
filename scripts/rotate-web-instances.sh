@@ -171,7 +171,7 @@ trap 'restore_capacity' EXIT
 
 # ASG 상세
 ASG_JSON=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names "$ASG_NAME")
-TARGET_GROUP_ARN = $(  aws autoscaling describe-auto-scaling-groups \
+TARGET_GROUP_ARN=$(  aws autoscaling describe-auto-scaling-groups \
     --auto-scaling-group-names "$ASG_NAME" \
     --query 'AutoScalingGroups[0].TargetGroupARNs[0]' \
     --output text
