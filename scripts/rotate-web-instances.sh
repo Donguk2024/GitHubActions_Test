@@ -171,9 +171,21 @@ trap 'restore_capacity' EXIT
 
 # ASG 상세
 ASG_JSON=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names "$ASG_NAME")
-TARGET_GROUP_ARN=$(echo "$ASG_JSON" | jq -r '.AutoScalingGroups[0].TargetGroupARNs[0]')
-mapfile -t INSTANCE_IDS < <(echo "$ASG_JSON" | jq -r '.AutoScalingGroups[0].Instances[] | select(.LifecycleState|startswith("Terminating")|not) | .InstanceId')
+TARGET_GROUP_ARN = $(  aws autoscaling describe-auto-scaling-groups \
+    --auto-scaling-group-names "$ASG_NAME" \
+    --query 'AutoScalingGroups[0].TargetGroupARNs[0]' \
+    --output text
+)
+
+read -ra INSTANCE_IDS <<< "$(
+  aws autoscaling describe-auto-scaling-groups \
+    --auto-scaling-group-names "$ASG_NAME" \
+    --query 'AutoScalingGroups[0].Instances[?!starts_with(LifecycleState, `Terminating`)].InstanceId' \
+    --output text
+)"
+
 replace_count=${#INSTANCE_IDS[@]}
+
 echo "교체 대상: ${replace_count}개 => ${INSTANCE_IDS[*]}"
 
 # 서지 반영
