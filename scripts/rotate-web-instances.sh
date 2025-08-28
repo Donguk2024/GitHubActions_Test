@@ -201,8 +201,9 @@ healthy_targets() {
     --query "length(TargetHealthDescriptions[?TargetHealth.State=='healthy'])" --output text 2>/dev/null || echo 0
 }
 
-# 새 인스턴스 올라올 때까지 빠른 폴링(최대 90초)
-deadline=$((SECONDS + 90))
+# 새 인스턴스 올라올 때까지 빠른 폴링(최대 180초)
+deadline=$((SECONDS + 180))
+
 while (( SECONDS < deadline )); do
   h=$(healthy_targets)
   echo "TargetGroup Healthy: ${h}/${new_capacity}"
