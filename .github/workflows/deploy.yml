@@ -72,7 +72,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no \
           ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }} \
-          "echo '🚀 Running health check script' && chmod +x ~/deploy-web-test.sh && ~/deploy-web-test.sh"
+          "chmod +x ~/deploy-web-test.sh && ~/deploy-web-test.sh"
 
       - name: Cleanup SSH key
         run: rm -f ~/.ssh/bastion-key.pem
