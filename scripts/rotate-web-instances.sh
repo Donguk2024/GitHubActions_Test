@@ -47,8 +47,8 @@ replace_count=${#instance_array[@]}
 echo "교체 대상 인스턴스 ($replace_count개): ${instance_array[*]}"
 print_instance_states
 
-# 3. 용량 설정 변경 (교체할 인스턴스 수 + 1)
-new_capacity=$((replace_count + 1))
+# 3. 용량 설정 변경 (교체할 인스턴스 수 + 2)
+new_capacity=$((replace_count + 2))
 aws autoscaling update-auto-scaling-group \
   --auto-scaling-group-name "$ASG_NAME" \
   --min-size "$new_capacity" \
