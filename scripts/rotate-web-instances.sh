@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -Eeuo pipefail
 echo "Rolling update ASG"
 ASG_NAME="asg-k"
 ORIGIN_MIN=0
@@ -54,7 +54,7 @@ replace_count=${#instance_array[@]}
 echo "교체 대상 인스턴스 ($replace_count개): ${instance_array[*]}"
 print_instance_states
 
-# 3. 용량 설정 변경 (교체할 인스턴스 수 + 2)
+# 3. 용량 설정 변경 ( ORIGIN_DESIRED + BUFFER )
 new_capacity=$((ORIGIN_DESIRED + BUFFER ))
 NEW_MAX=$(( ORIGIN_MAX > new_capacity ? ORIGIN_MAX : new_capacity ))
 
