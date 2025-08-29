@@ -4,6 +4,7 @@ services:
   app:
     image: ${DOCKER_USER}/actions_test:${IMAGE_TAG:-stable}
     restart: always
+    expose: ["5000"]
     init: true
     environment:
       - APP_ENV=prod
