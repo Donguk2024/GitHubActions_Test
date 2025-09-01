@@ -65,14 +65,12 @@ print_instance_states
 
 # 3. 용량 설정 변경 ( ORIGIN_DESIRED + BUFFER )
 new_capacity=$((ORIGIN_DESIRED + BUFFER ))
-NEW_MAX=$(( ORIGIN_MAX > new_capacity ? ORIGIN_MAX : new_capacity ))
-
 aws autoscaling update-auto-scaling-group \
   --auto-scaling-group-name "$ASG_NAME" \
-  --min-size "$ORIGIN_MIN" \
-  --max-size "$NEW_MAX" \
+  --min-size "$new_capacity" \
+  --max-size "$new_capacity" \
   --desired-capacity "$new_capacity"
-echo "용량 설정 변경: Desired ${ORIGIN_DESIRED} → ${new_capacity} (Min=$ORIGIN_MIN, Max=$NEW_MAX)"
+echo "용량 설정 변경: Desired ${ORIGIN_DESIRED} → ${new_capacity} (Min=Max=Desired)"
 
 # ASG에 연결된 첫 번째 Target Group ARN 확보
 TG_ARN=$(aws autoscaling describe-auto-scaling-groups \
@@ -107,7 +105,7 @@ echo "사용할 Target Group: $TG_ARN"
 
 # 4. 확장된 용량이 ALB(Target Group) Healthy 될 때까지 대기  [변경]
 for i in $(seq $(( HEALTHY_TIMEOUT / SLEEP_SEC ))); do
-  echo "새 용량 ALB Healthy 대기: $i"
+  echo "새 인스턴스 Healthy 대기: $i"
   tg_healthy=$(healthy_targets)
   echo "TargetGroup Healthy: ${tg_healthy}/${new_capacity}"
   if (( tg_healthy >= new_capacity )); then
@@ -148,7 +146,7 @@ for ((start=0; start<total; start+=BATCH_SIZE)); do
   echo "---------------------------------------------"
   echo "배치 종료 요청: index ${start} ~ ${end} (배치 크기: ${batch_size})"
 
-  # 5.1 배치 동시 종료 요청(병렬) — [변경]
+  # 5.1 배치 동시 종료 요청(병렬)
   pids=()
   for ((i=start; i<=end; i++)); do
     id="${instance_array[$i]}"
@@ -160,7 +158,7 @@ for ((start=0; start<total; start+=BATCH_SIZE)); do
   # 모든 종료 API 호출 완료 대기
   for pid in "${pids[@]}"; do wait "$pid"; done
 
-  # 5.2 배치 전체가 Terminating(or 목록에서 사라짐) 될 때까지 대기 — [변경]
+  # 5.2 배치 전체가 Terminating(or 목록에서 사라짐) 될 때까지 대기
   deadline=$(( SECONDS + TERMINATE_TIMEOUT ))
   while : ; do
     all_terminating=true
