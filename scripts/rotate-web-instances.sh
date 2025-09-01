@@ -184,33 +184,33 @@ for ((start=0; start<total; start+=BATCH_SIZE)); do
     sleep "$SLEEP_SEC"
   done
 
-# 5.3 새 인스턴스 Healthy 대기 
-   replaced_total=$(( replaced_total + batch_size ))
-   target_healthy=$(( baseline_healthy + replaced_total ))
-   if (( target_healthy > new_capacity )); then
-     target_healthy=$new_capacity
-   fi
+# # 5.3 새 인스턴스 Healthy 대기 
+#    replaced_total=$(( replaced_total + batch_size ))
+#    target_healthy=$(( baseline_healthy + replaced_total ))
+#    if (( target_healthy > new_capacity )); then
+#      target_healthy=$new_capacity
+#    fi
 
-   echo "새 인스턴스 ALB Healthy 대기: 목표 ${target_healthy}/${new_capacity}"
-   deadline=$(( SECONDS + HEALTHY_TIMEOUT ))
-   while : ; do
-    tg_healthy=$(healthy_targets)
-    echo "현재 TargetGroup Healthy: ${tg_healthy}/${new_capacity}"
-    if (( tg_healthy >= target_healthy )); then
-      echo "✅ 배치 Target Group Healthy 확인 완료"
-      print_instance_states
-      break
-    fi
-     (( SECONDS >= deadline )) && {
-       echo "❌ 배치 Target Group Healthy 확인 타임아웃"
-       print_instance_states
-       restore_capacity
-       exit 1
-     }
-     sleep "$SLEEP_SEC"
-   done
-  done
-  
+#    echo "새 인스턴스 ALB Healthy 대기: 목표 ${target_healthy}/${new_capacity}"
+#    deadline=$(( SECONDS + HEALTHY_TIMEOUT ))
+#    while : ; do
+#     tg_healthy=$(healthy_targets)
+#     echo "현재 TargetGroup Healthy: ${tg_healthy}/${new_capacity}"
+#     if (( tg_healthy >= target_healthy )); then
+#       echo "✅ 배치 Target Group Healthy 확인 완료"
+#       print_instance_states
+#       break
+#     fi
+#      (( SECONDS >= deadline )) && {
+#        echo "❌ 배치 Target Group Healthy 확인 타임아웃"
+#        print_instance_states
+#        restore_capacity
+#        exit 1
+#      }
+#      sleep "$SLEEP_SEC"
+#    done
+#   done
+
 #   # 5.3 새 인스턴스 Healthy 대기 
 #   replaced_total=$(( replaced_total + batch_size ))
 #   target_healthy=$(( baseline_healthy + replaced_total ))
