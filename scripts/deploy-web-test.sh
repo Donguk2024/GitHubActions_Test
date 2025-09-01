@@ -101,7 +101,7 @@ fi
 
 # 5) /health 초단위 헬스 체크(3초 간격, 최대 90초)
 echo "Probing app health..."
-deadline=$((SECONDS + 90))
+deadline=$((SECONDS + 180))
 while (( SECONDS < deadline )); do
   code=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -i "~/.ssh/web-key.pem" \
     ubuntu@"${private_ip}" \
