@@ -26,6 +26,7 @@ print_instance_states() {
 healthy_targets() {
   aws elbv2 describe-target-health \
     --target-group-arn "$TG_ARN" \
+    --region ap-northeast-1 \
     --query "length(TargetHealthDescriptions[?TargetHealth.State=='healthy'])" \
     --output text
 }
@@ -182,7 +183,7 @@ for ((start=0; start<total; start+=BATCH_SIZE)); do
       exit 1
     }
     sleep "$SLEEP_SEC"
-  done
+ done
 
 # # 5.3 새 인스턴스 Healthy 대기 
 #    replaced_total=$(( replaced_total + batch_size ))
