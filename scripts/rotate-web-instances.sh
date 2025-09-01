@@ -6,7 +6,7 @@ ORIGIN_MIN=0
 ORIGIN_MAX=0
 ORIGIN_DESIRED=0
 
-# [추가] 배치·버퍼 파라미터(환경변수로 덮어쓰기 가능). 요구하신 기본값 유지
+# 배치·버퍼 파라미터(환경변수로 덮어쓰기 가능
 BATCH_SIZE=${BATCH_SIZE:-2}           # 한 번에 종료/교체할 인스턴스 수
 BUFFER=${BUFFER:-$BATCH_SIZE}         # 여유 용량(원래 Desired + BUFFER 만큼 확보)
 TERMINATE_TIMEOUT=${TERMINATE_TIMEOUT:-300}  # [초] 배치 terminating 대기 타임아웃
@@ -19,6 +19,14 @@ print_instance_states() {
   aws autoscaling describe-auto-scaling-groups \
     --auto-scaling-group-names "$ASG_NAME" \
     --query 'AutoScalingGroups[0].Instances[*].[InstanceId, LifecycleState, HealthStatus]' \
+    --output text
+}
+
+# ALB 타깃 그룹 Healthy 수 조회 헬퍼
+healthy_targets() {
+  aws elbv2 describe-target-health \
+    --target-group-arn "$TG_ARN" \
+    --query "length(TargetHealthDescriptions[?TargetHealth.State=='healthy'])" \
     --output text
 }
 
@@ -65,23 +73,49 @@ aws autoscaling update-auto-scaling-group \
   --desired-capacity "$new_capacity"
 echo "용량 설정 변경: Desired ${ORIGIN_DESIRED} → ${new_capacity} (Min=$ORIGIN_MIN, Max=$NEW_MAX)"
 
-# 4. 새 인스턴스가 Healthy 상태가 될 때까지 대기
+# ASG에 연결된 첫 번째 Target Group ARN 확보
+TG_ARN=$(aws autoscaling describe-auto-scaling-groups \
+  --auto-scaling-group-names "$ASG_NAME" \
+  --query 'AutoScalingGroups[0].TargetGroupARNs[0]' \
+  --output text)
+echo "사용할 Target Group: $TG_ARN"
+
+
+# # 4. 새 인스턴스가 Healthy 상태가 될 때까지 대기
+# for i in $(seq $(( HEALTHY_TIMEOUT / SLEEP_SEC ))); do
+#   echo "새 인스턴스 Healthy 대기: $i"
+#   healthy_count=$(aws autoscaling describe-auto-scaling-groups \
+#     --auto-scaling-group-names "$ASG_NAME" \
+#     --query "length(AutoScalingGroups[0].Instances[?LifecycleState=='InService' && HealthStatus=='Healthy'])" \
+#     --output text)
+#   echo "총 Healthy 인스턴스 수: $healthy_count/$new_capacity"
+#   if [[ "$healthy_count" -ge "$new_capacity" ]]; then
+#     echo "✅ Healthy 확인 완료"
+#     print_instance_states
+#     break
+#   fi
+#   # 상태 확인 실패
+#   if (( i == HEALTHY_TIMEOUT / SLEEP_SEC )); then
+#     echo "❌ Healthy 확인 실패"
+#     print_instance_states
+#     restore_capacity
+#     exit 1
+#   fi
+#   sleep "$SLEEP_SEC"
+# done
+
+# 4. 확장된 용량이 ALB(Target Group) Healthy 될 때까지 대기  [변경]
 for i in $(seq $(( HEALTHY_TIMEOUT / SLEEP_SEC ))); do
-  echo "새 인스턴스 Healthy 대기: $i"
-  healthy_count=$(aws autoscaling describe-auto-scaling-groups \
-    --auto-scaling-group-names "$ASG_NAME" \
-    --query "length(AutoScalingGroups[0].Instances[?LifecycleState=='InService' && HealthStatus=='Healthy'])" \
-    --output text)
-  echo "총 Healthy 인스턴스 수: $healthy_count/$new_capacity"
-  # 상태 확인 완료
-  if [[ "$healthy_count" -ge "$new_capacity" ]]; then
-    echo "✅ Healthy 확인 완료"
+  echo "새 용량 ALB Healthy 대기: $i"
+  tg_healthy=$(healthy_targets)
+  echo "TargetGroup Healthy: ${tg_healthy}/${new_capacity}"
+  if (( tg_healthy >= new_capacity )); then
+    echo "✅ 초기 확장 Target Group Healthy 확인 완료"
     print_instance_states
     break
   fi
-  # 상태 확인 실패
   if (( i == HEALTHY_TIMEOUT / SLEEP_SEC )); then
-    echo "❌ Healthy 확인 실패"
+    echo "❌ 초기 Target Group Healthy 확인 실패"
     print_instance_states
     restore_capacity
     exit 1
@@ -89,12 +123,16 @@ for i in $(seq $(( HEALTHY_TIMEOUT / SLEEP_SEC ))); do
   sleep "$SLEEP_SEC"
 done
 
-# [추가] 기준 Healthy 수(초기 확장 후)를 기록 — 타깃 Healthy 계산에 사용
-baseline_healthy=$(aws autoscaling describe-auto-scaling-groups \
-  --auto-scaling-group-names "$ASG_NAME" \
-  --query "length(AutoScalingGroups[0].Instances[?LifecycleState=='InService' && HealthStatus=='Healthy'])" \
-  --output text)
-echo "baseline_healthy: $baseline_healthy"
+# [변경] 기준 Healthy 수를 'ALB 타깃 그룹' 기준으로 기록
+baseline_healthy=$(healthy_targets)
+echo "baseline_healthy(TG): $baseline_healthy"
+
+# # 기준 Healthy 수(초기 확장 후)를 기록 — 타깃 Healthy 계산에 사용
+# baseline_healthy=$(aws autoscaling describe-auto-scaling-groups \
+#   --auto-scaling-group-names "$ASG_NAME" \
+#   --query "length(AutoScalingGroups[0].Instances[?LifecycleState=='InService' && HealthStatus=='Healthy'])" \
+#   --output text)
+# echo "baseline_healthy: $baseline_healthy"
 
 # 5. 대상 인스턴스들을 하나씩 교체
 echo "인스턴스 롤링 교체 시작..."
@@ -146,36 +184,62 @@ for ((start=0; start<total; start+=BATCH_SIZE)); do
     sleep "$SLEEP_SEC"
   done
 
-  # 5.3 새 인스턴스 Healthy 대기 — [변경]
-  # target_healthy = min(new_capacity, baseline_healthy + (replaced_total + batch_size))
-  replaced_total=$(( replaced_total + batch_size ))
-  target_healthy=$(( baseline_healthy + replaced_total ))
-  if (( target_healthy > new_capacity )); then
-    target_healthy=$new_capacity
-  fi
+# 5.3 새 인스턴스 Healthy 대기 
+   replaced_total=$(( replaced_total + batch_size ))
+   target_healthy=$(( baseline_healthy + replaced_total ))
+   if (( target_healthy > new_capacity )); then
+     target_healthy=$new_capacity
+   fi
 
-  echo "새 인스턴스 Healthy 대기: 목표 ${target_healthy}/${new_capacity}"
-  deadline=$(( SECONDS + HEALTHY_TIMEOUT ))
-  while : ; do
-    healthy_count=$(aws autoscaling describe-auto-scaling-groups \
-      --auto-scaling-group-names "$ASG_NAME" \
-      --query "length(AutoScalingGroups[0].Instances[?LifecycleState=='InService' && HealthStatus=='Healthy'])" \
-      --output text)
-    echo "현재 Healthy: ${healthy_count}/${new_capacity}"
-    if (( healthy_count >= target_healthy )); then
-      echo "✅ 배치 Healthy 확인 완료"
+   echo "새 인스턴스 ALB Healthy 대기: 목표 ${target_healthy}/${new_capacity}"
+   deadline=$(( SECONDS + HEALTHY_TIMEOUT ))
+   while : ; do
+    tg_healthy=$(healthy_targets)
+    echo "현재 TargetGroup Healthy: ${tg_healthy}/${new_capacity}"
+    if (( tg_healthy >= target_healthy )); then
+      echo "✅ 배치 Target Group Healthy 확인 완료"
       print_instance_states
       break
     fi
-    (( SECONDS >= deadline )) && {
-      echo "❌ 배치 Healthy 확인 타임아웃"
-      print_instance_states
-      restore_capacity
-      exit 1
-    }
-    sleep "$SLEEP_SEC"
+     (( SECONDS >= deadline )) && {
+       echo "❌ 배치 Target Group Healthy 확인 타임아웃"
+       print_instance_states
+       restore_capacity
+       exit 1
+     }
+     sleep "$SLEEP_SEC"
+   done
   done
-done
+  
+#   # 5.3 새 인스턴스 Healthy 대기 
+#   replaced_total=$(( replaced_total + batch_size ))
+#   target_healthy=$(( baseline_healthy + replaced_total ))
+#   if (( target_healthy > new_capacity )); then
+#     target_healthy=$new_capacity
+#   fi
+
+#   echo "새 인스턴스 Healthy 대기: 목표 ${target_healthy}/${new_capacity}"
+#   deadline=$(( SECONDS + HEALTHY_TIMEOUT ))
+#   while : ; do
+#     healthy_count=$(aws autoscaling describe-auto-scaling-groups \
+#       --auto-scaling-group-names "$ASG_NAME" \
+#       --query "length(AutoScalingGroups[0].Instances[?LifecycleState=='InService' && HealthStatus=='Healthy'])" \
+#       --output text)
+#     echo "현재 Healthy: ${healthy_count}/${new_capacity}"
+#     if (( healthy_count >= target_healthy )); then
+#       echo "✅ 배치 Healthy 확인 완료"
+#       print_instance_states
+#       break
+#     fi
+#     (( SECONDS >= deadline )) && {
+#       echo "❌ 배치 Healthy 확인 타임아웃"
+#       print_instance_states
+#       restore_capacity
+#       exit 1
+#     }
+#     sleep "$SLEEP_SEC"
+#   done
+# done
 
 # 6. 기존 용량 설정 복구
 echo "롤링 업데이트 완료"
