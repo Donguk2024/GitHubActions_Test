@@ -36,7 +36,7 @@ def health():
 def status():
     return jsonify(
         app="autoscaling-demo",
-        version="1.1.7",
+        version="1.1.8",
         hostname=socket.gethostname(),
         time=datetime.datetime.utcnow().isoformat()
     ), 200

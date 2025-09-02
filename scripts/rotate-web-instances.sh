@@ -86,7 +86,25 @@ replace_count=${#instance_array[@]}
 echo "교체 대상 인스턴스 ($replace_count개): ${instance_array[*]}"
 print_instance_states
 
+# 2.x 교체 규모(a) 기반 동적 버퍼/배치 계산  ← [여기에 추가]
+a=$replace_count
 
+# 모드: safe(0.5/0.3), balanced(0.5/0.5), fast(0.5/0.7)
+MODE=${MODE:-balanced}
+case "$MODE" in
+  safe)     BATCH_PCT=50; BUFFER_PCT=30 ;; 
+  balanced) BATCH_PCT=50; BUFFER_PCT=50 ;;
+  fast)     BATCH_PCT=50; BUFFER_PCT=70 ;;
+  *)        BATCH_PCT=${BATCH_PCT:-50}; BUFFER_PCT=${BUFFER_PCT:-50} ;;
+esac
+
+# 올림(ceil) 계산: (x% 올림) = (a * pct + 99) / 100
+BATCH_SIZE=$(( (a * BATCH_PCT  + 99) / 100 ))
+BUFFER=$((     (a * BUFFER_PCT + 99) / 100 ))
+
+# 경계 보정
+(( BATCH_SIZE < 1 )) && BATCH_SIZE=1
+(( BUFFER     < BATCH_SIZE )) && BUFFER=$BATCH_SIZE   # 무중단 보장(버퍼 ≥ 배치)
 
 
 # 3. 용량 설정 변경 ( ORIGIN_DESIRED + BUFFER )
@@ -203,14 +221,14 @@ for ((start=0; start<total; start+=BATCH_SIZE)); do
  done
 
 
-  # 5.3 새 인스턴스 Healthy 대기
+  # 5.3 인스턴스 Healthy 대기
    replaced_total=$(( replaced_total + batch_size ))
    target_healthy=$(( baseline_healthy + replaced_total ))
    if (( target_healthy > ORIGIN_DESIRED )); then
      target_healthy=$ORIGIN_DESIRED
    fi
 
-   echo "새 인스턴스 ALB Healthy 대기: 목표 ${target_healthy}/${ORIGIN_DESIRED}"
+   echo "인스턴스 ALB Healthy 대기: 목표 ${target_healthy}/${ORIGIN_DESIRED}"
    deadline=$(( SECONDS + HEALTHY_TIMEOUT ))
    while : ; do
     tg_healthy=$(healthy_targets)
