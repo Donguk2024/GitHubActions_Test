@@ -34,7 +34,7 @@ EXPOSE 5000
 
 # 운영 권장: gunicorn
 # (requirements.txt에 gunicorn 포함 필요)
-CMD ["sh","-c","exec gunicorn -w ${GUNICORN_WORKERS} -t ${GUNICORN_TIMEOUT} -b 0.0.0.0:${PORT} app:app"]
+CMD ["python", "app.py"]
 
 # FROM python:3.12-slim
 
@@ -92,4 +92,4 @@ CMD ["sh","-c","exec gunicorn -w ${GUNICORN_WORKERS} -t ${GUNICORN_TIMEOUT} -b 0
 # EXPOSE 5000
 
 # RUN ls -l /app && test -f /app/app.py  # 없으면 빌드 실패
-# CMD ["python", "app.py"]FROM python:3.9-slim
+# CMD ["python", "app.py"]
