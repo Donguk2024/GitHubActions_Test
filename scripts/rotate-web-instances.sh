@@ -7,12 +7,29 @@ ORIGIN_MIN=0
 ORIGIN_MAX=0
 ORIGIN_DESIRED=0
 
-# 배치·버퍼 파라미터(환경변수로 덮어쓰기 가능
-BATCH_SIZE=${BATCH_SIZE:-2}           # 한 번에 종료/교체할 인스턴스 수
-BUFFER=${BUFFER:-$BATCH_SIZE}         # 여유 용량(원래 Desired + BUFFER 만큼 확보)
-TERMINATE_TIMEOUT=${TERMINATE_TIMEOUT:-300}  # [초] 배치 terminating 대기 타임아웃
-HEALTHY_TIMEOUT=${HEALTHY_TIMEOUT:-600}      # [초] 배치 healthy 대기 타임아웃
+
+# 배치·버퍼 파라미터(환경변수로 덮어쓰기 가능)
+# - BUFFER를 먼저 결정(없으면 2)
+# - BATCH_SIZE가 비어있으면 ceil(BUFFER/2)로 보수적 기본값
+#   (속도 우선이면 환경변수로 BATCH_SIZE=BUFFER 로 덮어쓰기)
+BUFFER=${BUFFER:-2}
+BATCH_SIZE=${BATCH_SIZE:-$(( (BUFFER + 1) / 2 ))}   # 기본: ceil(BUFFER/2)
+
+# 경계값 보정: 1 <= BATCH_SIZE <= BUFFER
+(( BATCH_SIZE < 1 )) && BATCH_SIZE=1
+(( BATCH_SIZE > BUFFER )) && BATCH_SIZE=$BUFFER
+
+# 타임아웃/주기
+TERMINATE_TIMEOUT=${TERMINATE_TIMEOUT:-300}  # [초] 배치 terminating 타임아웃
+HEALTHY_TIMEOUT=${HEALTHY_TIMEOUT:-600}      # [초] 배치 healthy 타임아웃
 SLEEP_SEC=${SLEEP_SEC:-6}                    # 폴링 주기
+
+# # 배치·버퍼 파라미터(환경변수로 덮어쓰기 가능)
+# BATCH_SIZE=${BATCH_SIZE:-2}           # 한 번에 종료/교체할 인스턴스 수
+# BUFFER=${BUFFER:-$BATCH_SIZE}         # 여유 용량(원래 Desired + BUFFER 만큼 확보)
+# TERMINATE_TIMEOUT=${TERMINATE_TIMEOUT:-300}  # [초] 배치 terminating 대기 타임아웃
+# HEALTHY_TIMEOUT=${HEALTHY_TIMEOUT:-600}      # [초] 배치 healthy 대기 타임아웃
+# SLEEP_SEC=${SLEEP_SEC:-6}                    # 폴링 주기
 
 # 인스턴스 상태 출력 함수
 print_instance_states() {
@@ -68,6 +85,9 @@ read -ra instance_array <<< "$instances"
 replace_count=${#instance_array[@]}
 echo "교체 대상 인스턴스 ($replace_count개): ${instance_array[*]}"
 print_instance_states
+
+
+
 
 # 3. 용량 설정 변경 ( ORIGIN_DESIRED + BUFFER )
 new_capacity=$((ORIGIN_DESIRED + BUFFER ))
