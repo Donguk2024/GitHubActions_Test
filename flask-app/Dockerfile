@@ -3,9 +3,7 @@ FROM python:3.9-slim
 # 기본 환경
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PORT=5000 \
-    GUNICORN_WORKERS=2 \
-    GUNICORN_TIMEOUT=30
+    PORT=5000 
 
 WORKDIR /app
 
@@ -32,8 +30,6 @@ ENV APP_VERSION=${APP_VERSION}
 
 EXPOSE 5000
 
-# 운영 권장: gunicorn
-# (requirements.txt에 gunicorn 포함 필요)
 CMD ["python", "app.py"]
 
 # FROM python:3.12-slim

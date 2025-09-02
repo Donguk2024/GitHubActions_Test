@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 echo "Rolling update ASG"
 ASG_NAME="asg-k"
+TG_ARN = "arn:aws:elasticloadbalancing:ap-northeast-1:236528210774:targetgroup/tg-test-k/45c4dd4cea347b65"
 ORIGIN_MIN=0
 ORIGIN_MAX=0
 ORIGIN_DESIRED=0
@@ -15,10 +16,15 @@ SLEEP_SEC=${SLEEP_SEC:-6}                    # 폴링 주기
 
 # 인스턴스 상태 출력 함수
 print_instance_states() {
-  echo "현재 인스턴스 상태:"
+  echo "현재 ASG 상태:"
   aws autoscaling describe-auto-scaling-groups \
     --auto-scaling-group-names "$ASG_NAME" \
-    --query 'AutoScalingGroups[0].Instances[*].[InstanceId, LifecycleState, HealthStatus]' \
+    --query 'AutoScalingGroups[0].Instances[*].[InstanceId, LifecycleState]' \
+    --output text
+  echo "현재 TG 상태:"
+  aws elbv2 describe-target-health \
+    --target-group-arn "$TG_ARN" \
+    --query 'TargetHealthDescriptions[*].[Target.Id, TargetHealth.State]' \
     --output text
 }
 
@@ -71,13 +77,6 @@ aws autoscaling update-auto-scaling-group \
   --max-size "$new_capacity" \
   --desired-capacity "$new_capacity"
 echo "용량 설정 변경: Desired ${ORIGIN_DESIRED} → ${new_capacity} (Min=Max=Desired)"
-
-# ASG에 연결된 첫 번째 Target Group ARN 확보
-TG_ARN=$(aws autoscaling describe-auto-scaling-groups \
-  --auto-scaling-group-names "$ASG_NAME" \
-  --query 'AutoScalingGroups[0].TargetGroupARNs[0]' \
-  --output text)
-echo "사용할 Target Group: $TG_ARN"
 
 
 # # 4. 새 인스턴스가 Healthy 상태가 될 때까지 대기
@@ -133,7 +132,7 @@ echo "baseline_healthy(TG): $baseline_healthy"
 #   --output text)
 # echo "baseline_healthy: $baseline_healthy"
 
-# 5. 대상 인스턴스들을 하나씩 교체
+# 5. 대상 인스턴스들을 교체
 echo "인스턴스 롤링 교체 시작..."
 replaced_total=0
 total=${#instance_array[@]}
