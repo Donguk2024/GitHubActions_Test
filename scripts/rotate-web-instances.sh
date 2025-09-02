@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 echo "Rolling update ASG"
 ASG_NAME="asg-k"
-TG_ARN = "arn:aws:elasticloadbalancing:ap-northeast-1:236528210774:targetgroup/tg-test-k/45c4dd4cea347b65"
+TG_ARN= "arn:aws:elasticloadbalancing:ap-northeast-1:236528210774:targetgroup/tg-test-k/45c4dd4cea347b65"
 ORIGIN_MIN=0
 ORIGIN_MAX=0
 ORIGIN_DESIRED=0
