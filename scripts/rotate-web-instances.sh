@@ -13,7 +13,7 @@ ORIGIN_DESIRED=0
 # - BATCH_SIZE가 비어있으면 ceil(BUFFER/2)로 보수적 기본값
 #   (속도 우선이면 환경변수로 BATCH_SIZE=BUFFER 로 덮어쓰기)
 BUFFER=${BUFFER:-2}
-BATCH_SIZE=${BATCH_SIZE:-$(( (BUFFER + 1) / 2 ))}   # 기본: ceil(BUFFER/2)
+BATCH_SIZE=${BATCH_SIZE:-$(( (BUFFER + 1)))}   # 기본: ceil(BUFFER/2)
 
 # 경계값 보정: 1 <= BATCH_SIZE <= BUFFER
 (( BATCH_SIZE < 1 )) && BATCH_SIZE=1
