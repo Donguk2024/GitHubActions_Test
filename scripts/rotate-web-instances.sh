@@ -8,16 +8,18 @@ ORIGIN_MAX=0
 ORIGIN_DESIRED=0
 
 
-# 배치·버퍼 파라미터(환경변수로 덮어쓰기 가능)
-# - BUFFER를 먼저 결정(없으면 2)
-# - BATCH_SIZE가 비어있으면 ceil(BUFFER/2)로 보수적 기본값
-#   (속도 우선이면 환경변수로 BATCH_SIZE=BUFFER 로 덮어쓰기)
-BUFFER=${BUFFER:-2}
-BATCH_SIZE=${BATCH_SIZE:-$(( (BUFFER + 1)))}   # 기본: ceil(BUFFER/2)
+# 모드: safe(0.5/0.3), balanced(0.5/0.5), fast(0.5/0.7)
+MODE=${MODE:-fast}
+case "$MODE" in
+  safe)     BATCH_PCT=50; BUFFER_PCT=30 ;; 
+  balanced) BATCH_PCT=50; BUFFER_PCT=50 ;;
+  fast)     BATCH_PCT=50; BUFFER_PCT=70 ;;
+  *)        BATCH_PCT=${BATCH_PCT:-50}; BUFFER_PCT=${BUFFER_PCT:-50} ;;
+esac
 
-# 경계값 보정: 1 <= BATCH_SIZE <= BUFFER
+# 경계 보정
 (( BATCH_SIZE < 1 )) && BATCH_SIZE=1
-(( BATCH_SIZE > BUFFER )) && BATCH_SIZE=$BUFFER
+(( BUFFER     < BATCH_SIZE )) && BUFFER=$BATCH_SIZE   # 무중단 보장(버퍼 ≥ 배치)
 
 # 타임아웃/주기
 TERMINATE_TIMEOUT=${TERMINATE_TIMEOUT:-300}  # [초] 배치 terminating 타임아웃
@@ -89,23 +91,9 @@ print_instance_states
 # 2.x 교체 규모(a) 기반 동적 버퍼/배치 계산  ← [여기에 추가]
 a=$replace_count
 
-# 모드: safe(0.5/0.3), balanced(0.5/0.5), fast(0.5/0.7)
-MODE=${MODE:-balanced}
-case "$MODE" in
-  safe)     BATCH_PCT=50; BUFFER_PCT=30 ;; 
-  balanced) BATCH_PCT=50; BUFFER_PCT=50 ;;
-  fast)     BATCH_PCT=50; BUFFER_PCT=70 ;;
-  *)        BATCH_PCT=${BATCH_PCT:-50}; BUFFER_PCT=${BUFFER_PCT:-50} ;;
-esac
-
 # 올림(ceil) 계산: (x% 올림) = (a * pct + 99) / 100
 BATCH_SIZE=$(( (a * BATCH_PCT  + 99) / 100 ))
 BUFFER=$((     (a * BUFFER_PCT + 99) / 100 ))
-
-# 경계 보정
-(( BATCH_SIZE < 1 )) && BATCH_SIZE=1
-(( BUFFER     < BATCH_SIZE )) && BUFFER=$BATCH_SIZE   # 무중단 보장(버퍼 ≥ 배치)
-
 
 # 3. 용량 설정 변경 ( ORIGIN_DESIRED + BUFFER )
 new_capacity=$((ORIGIN_DESIRED + BUFFER ))
@@ -219,7 +207,6 @@ for ((start=0; start<total; start+=BATCH_SIZE)); do
     }
     sleep "$SLEEP_SEC"
  done
-
 
   # 5.3 인스턴스 Healthy 대기
    replaced_total=$(( replaced_total + batch_size ))
