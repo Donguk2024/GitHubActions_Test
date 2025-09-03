@@ -13,7 +13,7 @@ MODE=${MODE:-fast}
 case "$MODE" in
   safe)     BATCH_PCT=50; BUFFER_PCT=30 ;; 
   balanced) BATCH_PCT=50; BUFFER_PCT=50 ;;
-  fast)     BATCH_PCT=50; BUFFER_PCT=70 ;;
+  fast)     BATCH_PCT=70; BUFFER_PCT=70 ;;
   *)        BATCH_PCT=${BATCH_PCT:-50}; BUFFER_PCT=${BUFFER_PCT:-50} ;;
 esac
 
