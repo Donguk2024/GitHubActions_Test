@@ -17,10 +17,6 @@ case "$MODE" in
   *)        BATCH_PCT=${BATCH_PCT:-50}; BUFFER_PCT=${BUFFER_PCT:-50} ;;
 esac
 
-# 경계 보정
-(( BATCH_SIZE < 1 )) && BATCH_SIZE=1
-(( BUFFER     < BATCH_SIZE )) && BUFFER=$BATCH_SIZE   # 무중단 보장(버퍼 ≥ 배치)
-
 # 타임아웃/주기
 TERMINATE_TIMEOUT=${TERMINATE_TIMEOUT:-300}  # [초] 배치 terminating 타임아웃
 HEALTHY_TIMEOUT=${HEALTHY_TIMEOUT:-600}      # [초] 배치 healthy 타임아웃
@@ -94,6 +90,10 @@ a=$replace_count
 # 올림(ceil) 계산: (x% 올림) = (a * pct + 99) / 100
 BATCH_SIZE=$(( (a * BATCH_PCT  + 99) / 100 ))
 BUFFER=$((     (a * BUFFER_PCT + 99) / 100 ))
+
+# 경계 보정
+(( BATCH_SIZE < 1 )) && BATCH_SIZE=1
+(( BUFFER     < BATCH_SIZE )) && BUFFER=$BATCH_SIZE   # 무중단 보장(버퍼 ≥ 배치)
 
 # 3. 용량 설정 변경 ( ORIGIN_DESIRED + BUFFER )
 new_capacity=$((ORIGIN_DESIRED + BUFFER ))
