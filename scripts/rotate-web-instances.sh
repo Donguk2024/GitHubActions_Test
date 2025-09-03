@@ -95,6 +95,8 @@ BUFFER=$((     (a * BUFFER_PCT + 99) / 100 ))
 (( BATCH_SIZE < 1 )) && BATCH_SIZE=1
 (( BUFFER     < BATCH_SIZE )) && BUFFER=$BATCH_SIZE   # 무중단 보장(버퍼 ≥ 배치)
 
+echo "MODE=$MODE  a=$a  →  BATCH_SIZE=$BATCH_SIZE, BUFFER=$BUFFER"
+
 # 3. 용량 설정 변경 ( ORIGIN_DESIRED + BUFFER )
 new_capacity=$((ORIGIN_DESIRED + BUFFER ))
 aws autoscaling update-auto-scaling-group \
