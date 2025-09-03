@@ -130,10 +130,6 @@ echo "용량 설정 변경: Desired ${ORIGIN_DESIRED} → ${new_capacity} (Min=M
 #   sleep "$SLEEP_SEC"
 # done
 
-# [변경] 기준 Healthy 수를 'ALB 타깃 그룹' 기준으로 기록
-baseline_healthy=$(healthy_targets)
-echo "baseline_healthy(TG): $baseline_healthy"
-
 # 4. 확장된 용량이 ALB(Target Group) Healthy 될 때까지 대기  [변경]
 for i in $(seq $(( HEALTHY_TIMEOUT / SLEEP_SEC ))); do
   echo "새 인스턴스 Healthy 대기: $i"
