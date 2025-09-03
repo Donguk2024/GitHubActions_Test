@@ -212,10 +212,7 @@ for ((start=0; start<total; start+=BATCH_SIZE)); do
 
   # 5.3 인스턴스 Healthy 대기
    replaced_total=$(( replaced_total + batch_size ))
-   target_healthy=$(( baseline_healthy + replaced_total ))
-   if (( target_healthy > ORIGIN_DESIRED )); then
-     target_healthy=$ORIGIN_DESIRED
-   fi
+   target_healthy=$ORIGIN_DESIRED
 
    echo "인스턴스 ALB Healthy 대기: 목표 ${target_healthy}/${ORIGIN_DESIRED}"
    deadline=$(( SECONDS + HEALTHY_TIMEOUT ))
