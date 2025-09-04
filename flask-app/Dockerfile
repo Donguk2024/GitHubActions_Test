@@ -17,21 +17,23 @@ COPY --chown=appuser:appuser . .
 RUN useradd -m appuser
 USER appuser
 
-HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
-  CMD ["python","-c","import os,urllib.request,sys;port=os.getenv('PORT','5000');url='http://127.0.0.1:'+port+'/health';\
-import urllib.error; \
-try: \
-    r=urllib.request.urlopen(url,timeout=2); sys.exit(0 if r.status==200 else 1) \
-except Exception: \
-    sys.exit(1)"]
+# HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+#   CMD ["python","-c","import os,urllib.request,sys;port=os.getenv('PORT','5000');url='http://127.0.0.1:'+port+'/health';\
+# import urllib.error; \
+# try: \
+#     r=urllib.request.urlopen(url,timeout=2); sys.exit(0 if r.status==200 else 1) \
+# except Exception: \
+#     sys.exit(1)"]
 
 ARG APP_VERSION=v1.0
 ENV APP_VERSION=${APP_VERSION}
 
 EXPOSE 5000
 
-CMD ["python", "app.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "30", "app:app"]
 
+# CMD ["sh", "-c", "gunicorn -w ${GUNICORN_WORKERS} -t ${GUNICORN_TIMEOUT} -b 0.0.0.0:${PORT} app:app"]
+# CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "30", "app:app"]
 # FROM python:3.12-slim
 
 # # 보안/재현성에 유리한 기본 설정
