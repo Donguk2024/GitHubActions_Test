@@ -1,0 +1,41 @@
+version: '3.8'
+services:
+  flask-app:
+    image: ${IMAGE_REPO}:${IMAGE_TAG}
+    container_name: flask-container
+    expose:
+      - "5000"
+    # environment:
+    #   - DB_HOST=${DB_HOST}
+    #   - DB_PORT=${DB_PORT}
+    #   - DB_USERNAME=${DB_USERNAME}
+    #   - DB_PASSWORD=${DB_PASSWORD}
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-container
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      flask-app:
+        condition: service_healthy
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
