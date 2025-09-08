@@ -5,11 +5,11 @@ services:
     container_name: flask-container
     expose:
       - "5000"
-    # environment:
-    #   - DB_HOST=${DB_HOST}
-    #   - DB_PORT=${DB_PORT}
-    #   - DB_USERNAME=${DB_USERNAME}
-    #   - DB_PASSWORD=${DB_PASSWORD}
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
     restart: always
     logging:
       driver: json-file
