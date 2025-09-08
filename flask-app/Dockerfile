@@ -1,17 +1,32 @@
 FROM python:3.9-slim
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
- && apt-get clean && rm -rf /var/lib/apt/lists/*
- 
+
+# 기본 환경
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PORT=5000 
+
 WORKDIR /app
 
+# 의존성 먼저(캐시 최적화)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# 앱 복사 + 권한
+COPY --chown=appuser:appuser . .
+RUN useradd -m appuser
+USER appuser
+
+# HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+#   CMD ["python","-c","import os,urllib.request,sys;port=os.getenv('PORT','5000');url='http://127.0.0.1:'+port+'/health';\
+# import urllib.error; \
+# try: \
+#     r=urllib.request.urlopen(url,timeout=2); sys.exit(0 if r.status==200 else 1) \
+# except Exception: \
+#     sys.exit(1)"]
+
 ARG APP_VERSION=v1.0
 ENV APP_VERSION=${APP_VERSION}
-
-ENV PYTHONUNBUFFERED=1
 
 EXPOSE 5000
 
