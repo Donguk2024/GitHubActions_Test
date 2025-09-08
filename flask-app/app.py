@@ -74,6 +74,8 @@ def status():
         time=datetime.datetime.utcnow().isoformat()
     ), 200
 
+
+
 # @app.route('/db')
 # def db():
 #     def hold_connection():
