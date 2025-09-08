@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   flask-app:
-    image: ${IMAGE_REPO}:${IMAGE_TAG}
+    image: ${DOCKER_USER}:${IMAGE_TAG}
     container_name: flask-container
     expose:
       - "5000"
