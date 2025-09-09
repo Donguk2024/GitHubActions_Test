@@ -1,30 +1,30 @@
-FROM python:3.9-slim
+# FROM python:3.9-slim
 
-# 보안/재현성: 빌드 아규먼트로 앱 버전 전달
-ARG APP_VERSION=v1.0
+# # 보안/재현성: 빌드 아규먼트로 앱 버전 전달
+# ARG APP_VERSION=v1.0
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
- && apt-get clean && rm -rf /var/lib/apt/lists/*
+# RUN apt-get update && apt-get install -y --no-install-recommends curl \
+#  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# WORKDIR /app
 
-# 의존성 먼저 설치 (빌드 캐시 최적화)
-COPY requirements.txt .
-RUN pip install --upgrade pip \
- && pip install --no-cache-dir -r requirements.txt \
- && useradd -m appuser
+# # 의존성 먼저 설치 (빌드 캐시 최적화)
+# COPY requirements.txt .
+# RUN pip install --upgrade pip \
+#  && pip install --no-cache-dir -r requirements.txt \
+#  && useradd -m appuser
 
-COPY . .
+# COPY . .
 
-# 비루트 사용자 추가 (보안 강화)
-USER appuser
+# # 비루트 사용자 추가 (보안 강화)
+# USER appuser
 
-ENV APP_VERSION=${APP_VERSION}
-ENV PYTHONUNBUFFERED=1
+# ENV APP_VERSION=${APP_VERSION}
+# ENV PYTHONUNBUFFERED=1
 
-EXPOSE 5000
+# EXPOSE 5000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "30", "app:app"]
+# CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "30", "app:app"]
 
 
 # FROM python:3.12-slim
@@ -62,3 +62,25 @@ CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "30", 
 
 # # 워커 2개로 gunicorn 실행 (app:app -> 파일명:변수명)
 # CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "30", "app:app"]
+
+
+
+FROM python:3.9-slim
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+ARG APP_VERSION=v1.0
+
+ENV APP_VERSION=${APP_VERSION}
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 5000
+
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "30", "app:app"]
