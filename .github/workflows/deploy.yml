@@ -22,11 +22,11 @@ jobs:
         docker build \
           -f flask-app/Dockerfile \
           --build-arg APP_VERSION=${{ github.sha }} \
-          -t ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_TAG }}:latest \
+          -t ${{ secrets.DOCKER_USERNAME }}/actions_test:latest \
           flask-app
 
     - name: Push Docker image
-      run: docker push ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_TAG }}:latest
+      run: docker push ${{ secrets.DOCKER_USERNAME }}/actions_test:latest
 
   step2_deploy_web_test:
       name: Step 2 - Deploy web-test and Run Health Check
@@ -46,32 +46,32 @@ jobs:
       - name: Copy deploy-web-test.sh to Bastion via scp
         run: |
           scp -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no scripts/deploy-web-test.sh \
-          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }}:/home/${{ secrets.BASTION_USER }}/
+          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }}:/home/${{ secrets.BASTION_USER }}/
 
       - name: Create web-key.pem on Bastion
         run: |
           ssh -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no \
-          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }} \
+          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
           "mkdir -p ~/.ssh && echo '${{ secrets.WEB_KEY }}' > ~/.ssh/web-key.pem && chmod 600 ~/.ssh/web-key.pem"
 
       - name: Ensure AWS CLI and curl are installed on Bastion
         run: |
           ssh -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no \
-          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }} \
+          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
           "command -v aws >/dev/null || (echo Installing AWS CLI... && \
           curl -sS https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip && \
           sudo apt update && sudo apt install unzip -y && \
           unzip awscliv2.zip && sudo ./aws/install)"
 
           ssh -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no \
-          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }} \
+          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
           "command -v curl >/dev/null || (echo Installing curl... && \
           sudo apt update && sudo apt install curl -y)"
 
       - name: Execute deploy-web-test.sh on Bastion
         run: |
           ssh -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no \
-          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }} \
+          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
           "chmod +x ~/deploy-web-test.sh && ~/deploy-web-test.sh"
 
       - name: Cleanup SSH key
@@ -87,13 +87,13 @@ jobs:
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
       - name: Pull :latest image from Docker Hub
-        run: docker pull ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_TAG }}:latest
+        run: docker pull ${{ secrets.DOCKER_USERNAME }}/actions_test:latest
 
       - name: Tag image as :stable
-        run: docker tag ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_TAG }}:latest ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_TAG }}:stable
+        run: docker tag ${{ secrets.DOCKER_USERNAME }}/actions_test:latest ${{ secrets.DOCKER_USERNAME }}/actions_test:stable
 
       - name: Push :stable image to Docker Hub
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_TAG }}:stable
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/actions_test:stable
 
   step4_rotate_web_asg:
         name: Step 4 - Rolling Update ASG
@@ -113,12 +113,12 @@ jobs:
         - name: Copy rotate-web-instances.sh to Bastion via scp
           run: |
             scp -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no scripts/rotate-web-instances.sh \
-            ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }}:/home/${{ secrets.BASTION_USER }}/
+            ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }}:/home/${{ secrets.BASTION_USER }}/
 
         - name: Execute rotate-web-instances.sh on Bastion
           run: |
             ssh -i ~/.ssh/bastion-key.pem -o StrictHostKeyChecking=no \
-            ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }} \
+            ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
             "chmod +x ~/rotate-web-instances.sh && ~/rotate-web-instances.sh"
 
         - name: Cleanup SSH key
